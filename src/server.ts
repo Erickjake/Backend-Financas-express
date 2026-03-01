@@ -1,0 +1,28 @@
+import express from "express";
+import transactionRoutes from "./routes/transaction.routes";
+import { initDb } from "./data/database";
+import { loggerMiddleware } from "./middlewares/loggerMiddleware";
+
+const app = express();
+app.use(express.json());
+
+app.use(loggerMiddleware);
+app.get("/", (req, res) => {
+    res.send("Hello World!");
+});
+
+app.use("/transacoes", transactionRoutes);
+const port = 3001;
+
+// Iniciamos o banco de dados
+initDb()
+    .then(() => {
+        // Se der tudo certo no banco, liga o servidor
+        app.listen(3001, () => {
+            console.log("🚀 Servidor rodando na porta 3001");
+        });
+    })
+    .catch((erro) => {
+        // Se o banco der erro, mostre essa mensagem com o erro exato
+        console.error("❌ Erro ao inicializar o banco de dados:", erro);
+    });
