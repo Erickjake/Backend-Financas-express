@@ -1,18 +1,25 @@
+// Arquivo: src/routes/transaction.routes.ts
+
 import { Router } from "express";
 import {
+    createTransaction,
     deleteTransacao,
+    editarTransaction,
     getSaldoTotal,
-    getTransacao,
-    postTransacao,
-} from "../modules/transaction/Controllers/transactionController";
+    listaTransacoes,
+} from "../modules/transaction/Controllers/transactionController.js"; // <-- O .js é obrigatório aqui!
+
+// ... resto do seu códigoaqui!
 
 const router = Router();
 
-router.get("/", getTransacao);
-router.post("/", postTransacao);
-
-router.get("/saldo", getSaldoTotal);
+router.post("/", createTransaction);
+router.get("/:usuarioId", listaTransacoes);
 router.delete("/:id", deleteTransacao);
-console.log(deleteTransacao);
+router.put("/:id", editarTransaction);
+router.get("/saldo/:usuarioId", getSaldoTotal);
+// router.get("/saldo", getSaldoTotal);
+// router.delete("/:id", deleteTransacao);
+// console.log(deleteTransacao);
 
 export default router;

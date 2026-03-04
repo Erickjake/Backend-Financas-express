@@ -1,71 +1,98 @@
 import { Request, Response } from "express";
-import * as transactionService from "../services/transactionService";
+import * as transactionService from "../services/transactionService.js";
 
-export const getTransacao = async (req: Request, res: Response) => {
+export const createTransaction = async (req: Request, res: Response) => {
     try {
-        const usuario = req.headers["x-usuario"] as string;
-        if (!usuario) {
-            return res.status(400).json({ error: "Usuário não fornecido" });
-        }
-        const dados = await transactionService.listarTransacoes(usuario);
-        res.status(200).json(dados);
+        const usuarioId = Number(req.query.usuarioId);
+        const transaction = req.body;
+        await transactionService.createTransaction({
+            ...transaction,
+            usuarioId: Number(usuarioId),
+        });
+        res.status(201).json({ message: "Transação criada com sucesso" });
     } catch (error) {
+        res.status(500).json({ error: "Erro ao criar transação" });
+    }
+};
+
+// No arquivo transactionController.ts
+export const deleteTransacao = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const idNumerico = Number(id);
+
+        if (isNaN(idNumerico)) {
+            return res.status(400).json({
+                error: "O ID da transação deve ser um número válido.",
+            });
+        }
+        const apagar = await transactionService.deleteTransaction(idNumerico);
+        if (apagar.length === 0) {
+            return res.status(404).json({ error: "Transação não encontrada." });
+        }
+        res.status(200).json({ message: "Transação apagada com sucesso." });
+    } catch (error) {
+        console.error("Erro ao apagar transação:", error);
+        res.status(500).json({ error: "Erro ao apagar transação." });
+    }
+    // sua lógica aqui
+};
+
+export const listaTransacoes = async (req: Request, res: Response) => {
+    try {
+        const { usuarioId } = req.params;
+        const idNumerico = Number(usuarioId);
+        if (isNaN(idNumerico)) {
+            return res
+                .status(400)
+                .json({ error: "O ID do usuário deve ser um número válido." });
+        }
+        const transacoesDoUsuario =
+            await transactionService.listTransactions(idNumerico);
+        res.status(200).json(transacoesDoUsuario);
+    } catch (error) {
+        console.error("Erro ao listar transações:", error);
         res.status(500).json({ error: "Erro ao listar transações" });
     }
 };
 
-export const postTransacao = async (req: Request, res: Response) => {
+export const editarTransaction = async (req: Request, res: Response) => {
     try {
-        const usuario = req.headers["x-usuario"] as string;
-        if (!usuario) {
-            return res.status(400).json({ error: "Usuário não fornecido" });
+        const { id } = req.params;
+        const transaction = req.body;
+        const idNumerico = Number(id);
+        if (isNaN(idNumerico)) {
+            return res.status(400).json({
+                error: "O ID da transação deve ser um número válido.",
+            });
         }
-
-        // 👇 A MÁGICA ACONTECE AQUI 👇
-        // Nós usamos o "Spread Operator" (...) para espalhar o titulo, valor e tipo, e adicionamos o usuario
-        const dadosDaTransacao = {
-            ...req.body,
-            usuario: usuario,
-        };
-
-        // Agora mandamos o pacote completo (com o dono) para o banco de dados
-        const novaTransacao =
-            await transactionService.criarTransacao(dadosDaTransacao);
-
-        res.status(201).json(novaTransacao);
+        const editarTransaction = await transactionService.editarTransaction(
+            idNumerico,
+            transaction,
+        );
+        if (editarTransaction.length === 0) {
+            return res.status(404).json({ error: "Transação não encontrada." });
+        }
+        res.status(200).json({ message: "Transação editada com sucesso." });
     } catch (error) {
-        console.error("ERRO NO BANCO:", error);
-        res.status(500).json({ error: "Erro ao criar transação" });
+        console.error("Erro ao editar transação:", error);
+        res.status(500).json({ error: "Erro ao editar transação." });
     }
 };
 
 export const getSaldoTotal = async (req: Request, res: Response) => {
     try {
-        const usuario = req.headers["x-usuario"] as string;
-        if (!usuario) {
-            return res.status(400).json({ error: "Usuário não fornecido" });
+        const { usuarioId } = req.params;
+        const idNumerico = Number(usuarioId);
+        if (isNaN(idNumerico)) {
+            return res
+                .status(400)
+                .json({ error: "O ID do usuário deve ser um número válido." });
         }
-        const saldoTotal = await transactionService.calcularSaldoTotal(usuario);
+        const saldoTotal = await transactionService.getSaldoTotal(idNumerico);
         res.status(200).json(saldoTotal);
     } catch (error) {
-        console.error("ERRO NO BANCO:", error);
-        res.status(500).json({ error: "Erro ao calcular saldo total" });
-    }
-};
-
-// Adicione esta função no final do seu controller
-export const deleteTransacao = async (req: Request, res: Response) => {
-    try {
-        // Pegamos o ID que vem na URL e transformamos em Número
-        const id = Number(req.params.id);
-
-        // Pedimos para o Service apagar
-        await transactionService.deletarTransacao(id);
-
-        // Retornamos o status 204 (No Content) -> Significa "Deu certo, mas não tenho texto para devolver"
-        res.status(204).send();
-    } catch (error) {
-        console.error("❌ ERRO AO DELETAR TRANSAÇÃO:", error);
-        res.status(500).json({ error: "Erro ao deletar a transação" });
+        console.error("Erro ao calcular saldo total:", error);
+        res.status(500).json({ error: "Erro ao calcular saldo total." });
     }
 };

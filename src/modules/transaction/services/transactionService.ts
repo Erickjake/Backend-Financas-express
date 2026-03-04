@@ -1,72 +1,99 @@
-import { openDb } from "../../../data/database";
-import { Transaction } from "../../../model/Transaction";
+import { db } from "@/db"; // Garante que o caminho no tsconfig.json existe
+import { transacoes } from "@/db/schema";
+import { eq, InferInsertModel, sum } from "drizzle-orm";
 
-// Transformamos a função em 'async' porque buscar no banco de dados demora alguns milissegundos
-export const listarTransacoes = async (usuario: string) => {
-    const db = await openDb();
-    // SELECT * FROM transacoes -> "Busque tudo na tabela transacoes"
-    const transacoes = await db.all(
-        "SELECT * FROM transacoes WHERE usuario = ?",
-        usuario,
-    );
-    console.log("🚀 ~ listarTransacoes ~ transacoes:", transacoes);
-    return transacoes;
-};
+// Tipagem automática para inserção
+export type NewTransaction = InferInsertModel<typeof transacoes>;
 
-// Recebe o objeto completo que veio do req.body
-export const criarTransacao = async (transacao: Transaction) => {
-    const db = await openDb();
-
-    // ATENÇÃO AQUI: Trocamos 'nome' por 'titulo' no SQL e na variável
-    const resultado = await db.run(
-        "INSERT INTO transacoes (titulo, valor, tipo, usuario) VALUES (?, ?, ?,?)",
-        transacao.titulo,
-        transacao.valor,
-        transacao.tipo,
-        transacao.usuario,
-    );
-
-    // Adicionamos o ID gerado pelo banco ao nosso objeto
-    transacao.id = resultado.lastID;
-
-    // Criamos a data atual e adicionamos ao objeto
-    transacao.date = new Date().toISOString();
-
-    // Retornamos o objeto completo para o Controller
-    return transacao;
-};
-
-export const calcularSaldoTotal = async (usuario: string) => {
-    const db = await openDb();
-    const transacoes = await db.all(
-        "SELECT * FROM transacoes WHERE usuario = ?",
-        usuario,
-    );
-    let totalReceita = 0;
-    let totalDespesa = 0;
-
-    for (const transacao of transacoes) {
-        if (transacao.tipo === "receita") {
-            totalReceita += transacao.valor;
-        } else {
-            totalDespesa += transacao.valor;
-        }
+/**
+ * Cria uma nova transação no banco de dados
+ */
+export const createTransaction = async (transaction: NewTransaction) => {
+    try {
+        await db.insert(transacoes).values(transaction);
+    } catch (error) {
+        console.error("Erro ao criar transação:", error);
+        throw error;
     }
-
-    const saldoTotal = totalReceita - totalDespesa;
-    return {
-        receita: totalReceita,
-        despesa: totalDespesa,
-        saldoTotal: saldoTotal,
-    };
 };
 
-// Nova função para deletar uma transação pelo ID
-export const deletarTransacao = async (id: number) => {
-    const db = await openDb();
+/**
+ * Lista todas as transações de um usuário específico
+ * @param usuarioId ID do usuário (baseado no schema)
+ */
+export const listTransactions = async (usuarioId: number) => {
+    try {
+        const transacoesDoUsuario = await db
+            .select()
+            .from(transacoes)
+            .where(eq(transacoes.usuarioId, usuarioId));
 
-    // DELETE FROM -> "Apague da tabela transacoes ONDE o id for igual a..."
-    await db.run("DELETE FROM transacoes WHERE id = ?", id);
+        return transacoesDoUsuario;
+    } catch (error) {
+        console.error("Erro ao listar transações:", error);
+        throw error;
+    }
+};
 
-    // Não precisamos retornar nada, se chegou aqui é porque apagou com sucesso!
+export const deleteTransaction = async (id: number) => {
+    try {
+        const deleteTransaction = await db
+            .delete(transacoes)
+            .where(eq(transacoes.id, id))
+            .returning();
+        return deleteTransaction;
+    } catch (error) {
+        console.error("Erro ao deletar transação:", error);
+        throw error;
+    }
+};
+
+export const editarTransaction = async (
+    id: number,
+    transaction: NewTransaction,
+) => {
+    try {
+        const editarTransaction = await db
+            .update(transacoes)
+            .set(transaction)
+            .where(eq(transacoes.id, id))
+            .returning();
+        return editarTransaction;
+    } catch (error) {
+        console.error("Erro ao editar transação:", error);
+        throw error;
+    }
+};
+
+export const getSaldoTotal = async (usuarioId: number) => {
+    try {
+        const transacoesDoUsuario = await db
+            .select()
+            .from(transacoes)
+            .where(eq(transacoes.usuarioId, usuarioId));
+
+        const resumo = transacoesDoUsuario.reduce(
+            (acc, atual) => {
+                const valor = Number(atual.valor); // Garante que é número
+
+                if (atual.tipo.toUpperCase() === "RECEITA") {
+                    acc.receitas += valor;
+                } else if (atual.tipo.toUpperCase() === "DESPESA") {
+                    acc.despesas += valor;
+                }
+                return acc;
+            },
+            { receitas: 0, despesas: 0 },
+        );
+
+        // 3. Retorna o objeto formatado
+        return {
+            totalReceitas: resumo.receitas,
+            totalDespesas: resumo.despesas,
+            saldo: resumo.receitas - resumo.despesas,
+        };
+    } catch (error) {
+        console.error("Erro ao calcular saldo total:", error);
+        throw error;
+    }
 };

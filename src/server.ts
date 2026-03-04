@@ -1,7 +1,7 @@
 import express from "express";
-import transactionRoutes from "./routes/transaction.routes";
-import { initDb } from "./data/database";
-import { loggerMiddleware } from "./middlewares/loggerMiddleware";
+import { initDb } from "./db/database.js";
+import { loggerMiddleware } from "./middlewares/loggerMiddleware.js";
+import transactionRoutes from "./routes/transaction.routes.js";
 
 const app = express();
 app.use(express.json());

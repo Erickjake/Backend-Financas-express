@@ -4,7 +4,7 @@ export type Transaction = {
     valor: number;
     tipo: "despesa" | "receita";
     date?: string;
-    usuario: string;
+    usuario: number;
 };
 
 export type Transactions = Transaction[];
