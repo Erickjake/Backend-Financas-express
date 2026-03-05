@@ -1,0 +1,1 @@
+ALTER TABLE `usuarios` ADD `senha` text NOT NULL;

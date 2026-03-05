@@ -1,17 +1,28 @@
 import { Request, Response } from "express";
 import * as transactionService from "../services/transactionService.js";
+import { insertTransacaoSchema } from "@/db/schema.js";
+import z from "zod";
+
+// Esquema simples para validar IDs que vêm na URL
+const idParamSchema = z.coerce.number().int().positive();
 
 export const createTransaction = async (req: Request, res: Response) => {
     try {
-        const usuarioId = Number(req.query.usuarioId);
-        const transaction = req.body;
+        const usuarioId = idParamSchema.parse(Number(req.query.usuarioId));
+        const transaction = insertTransacaoSchema.parse(req.body);
         await transactionService.createTransaction({
             ...transaction,
-            usuarioId: Number(usuarioId),
+            usuarioId,
         });
         res.status(201).json({ message: "Transação criada com sucesso" });
     } catch (error) {
-        res.status(500).json({ error: "Erro ao criar transação" });
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Dados inválidos",
+                details: error.flatten().fieldErrors,
+            });
+        }
+        res.status(500).json({ error: "Erro interno ao criar transação" });
     }
 };
 
@@ -19,7 +30,7 @@ export const createTransaction = async (req: Request, res: Response) => {
 export const deleteTransacao = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const idNumerico = Number(id);
+        const idNumerico = idParamSchema.parse(Number(id));
 
         if (isNaN(idNumerico)) {
             return res.status(400).json({
@@ -41,7 +52,7 @@ export const deleteTransacao = async (req: Request, res: Response) => {
 export const listaTransacoes = async (req: Request, res: Response) => {
     try {
         const { usuarioId } = req.params;
-        const idNumerico = Number(usuarioId);
+        const idNumerico = idParamSchema.parse(Number(usuarioId));
         if (isNaN(idNumerico)) {
             return res
                 .status(400)
@@ -51,6 +62,12 @@ export const listaTransacoes = async (req: Request, res: Response) => {
             await transactionService.listTransactions(idNumerico);
         res.status(200).json(transacoesDoUsuario);
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Dados inválidos",
+                details: error.flatten().fieldErrors,
+            });
+        }
         console.error("Erro ao listar transações:", error);
         res.status(500).json({ error: "Erro ao listar transações" });
     }
@@ -58,24 +75,23 @@ export const listaTransacoes = async (req: Request, res: Response) => {
 
 export const editarTransaction = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-        const transaction = req.body;
-        const idNumerico = Number(id);
-        if (isNaN(idNumerico)) {
-            return res.status(400).json({
-                error: "O ID da transação deve ser um número válido.",
-            });
-        }
-        const editarTransaction = await transactionService.editarTransaction(
-            idNumerico,
+        const id = idParamSchema.parse(Number(req.params.id));
+
+        const updateSchema = insertTransacaoSchema.partial();
+        const transaction = updateSchema.parse(req.body);
+
+        const resultado = await transactionService.editarTransaction(
+            id,
             transaction,
         );
-        if (editarTransaction.length === 0) {
+        if (resultado.length === 0) {
             return res.status(404).json({ error: "Transação não encontrada." });
         }
-        res.status(200).json({ message: "Transação editada com sucesso." });
+        res.status(200).json({ message: "Transação atualizada com sucesso." });
     } catch (error) {
-        console.error("Erro ao editar transação:", error);
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: "ID ou dados inválidos" });
+        }
         res.status(500).json({ error: "Erro ao editar transação." });
     }
 };

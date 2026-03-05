@@ -50,7 +50,7 @@ export const deleteTransaction = async (id: number) => {
 
 export const editarTransaction = async (
     id: number,
-    transaction: NewTransaction,
+    transaction: Partial<NewTransaction>,
 ) => {
     try {
         const editarTransaction = await db

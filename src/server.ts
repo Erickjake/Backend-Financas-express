@@ -2,6 +2,7 @@ import express from "express";
 import { initDb } from "./db/database.js";
 import { loggerMiddleware } from "./middlewares/loggerMiddleware.js";
 import transactionRoutes from "./routes/transaction.routes.js";
+import userRoutes from "./routes/user.route.js";
 
 const app = express();
 app.use(express.json());
@@ -12,6 +13,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/transacoes", transactionRoutes);
+app.use("/users", userRoutes);
 const port = 3001;
 
 // Iniciamos o banco de dados
