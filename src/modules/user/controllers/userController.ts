@@ -1,14 +1,16 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import * as userService from "../services/userService.js";
 import { insertUsuarioSchema } from "@/db/schema.js";
-import { z } from "zod"; // <-- Garante que importaste o 'z' aqui!
+import { z } from "zod";
+import { asyncHandler } from "@/utils/asyncHandler.js";
 
-export const userRegister = async (req: Request, res: Response) => {
-    console.log("--- DEBUG REQUISIÇÃO ---");
-    console.log("Headers:", req.headers["content-type"]);
-    console.log("Body recebido:", req.body);
-    try {
-        // O parse vai dar erro se o body for undefined ou mal formado
+const updateUsuarioSchema = insertUsuarioSchema.partial().omit({ id: true });
+/**
+ * REGISTO DE UTILIZADOR
+ */
+export const userRegister = asyncHandler(
+    async (req: Request, res: Response) => {
+        // A validação Zod lança um erro se falhar; o asyncHandler captura e o middleware trata.
         const userData = insertUsuarioSchema.parse(req.body);
 
         const existingUser = await userService.getUserByEmail(userData.email);
@@ -19,52 +21,79 @@ export const userRegister = async (req: Request, res: Response) => {
         }
 
         const newUser = await userService.createUser(userData);
-
         return res.status(201).json({
             message: "Utilizador criado com sucesso!",
             user: newUser,
         });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            // Usamos .issues para o TypeScript não reclamar
-            return res.status(400).json({
-                error: "Dados de registo inválidos",
-                details: error.issues.map((issue) => ({
-                    campo: issue.path.join("."),
-                    mensagem: issue.message,
-                })),
-            });
-        }
+    },
+);
 
-        console.error("Erro interno:", error);
-        return res.status(500).json({ error: "Erro interno no servidor." });
+/**
+ * LOGIN DE UTILIZADOR
+ */
+export const userLogin = asyncHandler(async (req: Request, res: Response) => {
+    const loginSchema = z.object({
+        email: z.string().email("Email inválido"),
+        senha: z.string().min(1, "Senha é obrigatória"),
+    });
+
+    const { email, senha } = loginSchema.parse(req.body);
+    const user = await userService.loginUser(email, senha);
+
+    if (!user) {
+        return res.status(401).json({ error: "Credenciais inválidas" });
     }
-};
 
-export const userLogin = async (req: Request, res: Response) => {
+    return res.status(200).json({ message: "Login bem-sucedido", user });
+});
+
+/**
+ * APAGAR UTILIZADOR
+ */
+export const deleteUserController = asyncHandler(
+    async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const idNumerico = Number(id);
+
+        if (isNaN(idNumerico)) {
+            return res.status(400).json({ error: "ID inválido." });
+        }
+
+        const resultado = await userService.deleteUser(idNumerico);
+        return res.status(200).json(resultado);
+    },
+);
+
+/**
+ * ATUALIZAR UTILIZADOR
+ */
+export const updateUserController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
     try {
-        // 2. Adicionar validação Zod no Login também!
-        const loginSchema = z.object({
-            email: z.string().email("Email inválido"),
-            senha: z.string().min(1, "Senha é obrigatória"),
-        });
+        const { id } = req.params;
+        const idNumerico = Number(id);
 
-        const { email, senha } = loginSchema.parse(req.body);
-
-        const user = await userService.loginUser(email, senha);
-
-        if (!user) {
-            return res.status(401).json({ error: "Credenciais inválidas" });
+        if (isNaN(idNumerico)) {
+            return res.status(400).json({ error: "ID inválido." });
         }
 
-        return res.status(200).json({ message: "Login bem-sucedido", user });
+        // Validação parcial (pode vir apenas nome, ou apenas email, etc.)
+        const userData = updateUsuarioSchema.parse(req.body);
+
+        if (Object.keys(userData).length === 0) {
+            return res.status(400).json({ error: "Nenhum dado fornecido." });
+        }
+
+        // Enviamos para o service
+        const userAtualizado = await userService.updateUser(
+            idNumerico,
+            userData,
+        );
+        return res.status(200).json(userAtualizado);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return res.status(400).json({
-                error: "Dados de login inválidos",
-                details: error.flatten().fieldErrors,
-            });
-        }
-        return res.status(500).json({ error: "Erro interno ao fazer login." });
+        next(error); // Agora o 'next' está declarado e funciona!
     }
 };
