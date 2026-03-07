@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as transactionService from "../services/transactionService.js";
+import * as transactionService from "@/modules/transaction/services/v1/transactionService.js";
 import { insertTransacaoSchema } from "@/db/schema.js";
 import z from "zod";
 

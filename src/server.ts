@@ -1,8 +1,8 @@
 import express from "express";
 import { initDb } from "./db/database.js";
 import { loggerMiddleware } from "./middlewares/loggerMiddleware.js";
-import transactionRoutes from "./routes/transaction.routes.js";
-import userRoutes from "./routes/user.route.js";
+import transactionRoutes from "./routes/transaction.routes.v1.js";
+import userRoutes from "./routes/user.route.v1.js";
 import { errorMiddleware } from "./middlewares/errorMiddleware.js";
 import dotenv from "dotenv";
 
@@ -16,8 +16,8 @@ app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
-app.use("/transacoes", transactionRoutes);
-app.use("/users", userRoutes);
+app.use("/api/v1/transacoes", transactionRoutes);
+app.use("/api/v1/users", userRoutes);
 const port = 3001;
 
 app.use(errorMiddleware);
@@ -25,7 +25,7 @@ app.use(errorMiddleware);
 initDb()
     .then(() => {
         // Se der tudo certo no banco, liga o servidor
-        app.listen(3001, () => {
+        app.listen(port, () => {
             console.log("🚀 Servidor rodando na porta 3001");
         });
     })

@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import * as userService from "../services/userService.js";
+import * as userService from "../../services/v1/userService.js";
 import { insertUsuarioSchema } from "@/db/schema.js";
 import { z } from "zod";
 import { asyncHandler } from "@/utils/asyncHandler.js";
@@ -97,3 +97,16 @@ export const updateUserController = async (
         next(error); // Agora o 'next' está declarado e funciona!
     }
 };
+
+export const refreshTokenController = asyncHandler(
+    async (req: Request, res: Response) => {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res
+                .status(400)
+                .json({ error: "Refresh token é necessário." });
+        }
+        const user = await userService.refreshToken(refreshToken);
+        return res.status(200).json(user);
+    },
+);

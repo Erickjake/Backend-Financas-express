@@ -19,7 +19,8 @@ export const authMiddleware = (
             id: number;
         };
 
-        (req as any).userId = decoded.id;
+        (req as Request).userId = decoded.id;
+
         return next();
     } catch (error) {
         return res.status(401).json({ message: "Token inválido ou expirado" });

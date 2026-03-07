@@ -7,7 +7,7 @@ import {
     editarTransaction,
     getSaldoTotal,
     listaTransacoes,
-} from "../modules/transaction/Controllers/transactionController.js"; // <-- O .js é obrigatório aqui!
+} from "../modules/transaction/Controllers/v1/transactionController.js"; // <-- O .js é obrigatório aqui!
 
 // ... resto do seu códigoaqui!
 

@@ -47,5 +47,22 @@ export const insertTransacaoSchema = createInsertSchema(transacoes, {
     createdAt: true,
 });
 
+export const updateUserSchema = z.object({
+    body: z.object({
+        nome: z
+            .string()
+            .min(3, "O nome deve ter pelo menos 3 caracteres")
+            .optional(),
+        email: z.string().email("Por favor, insira um email válido").optional(),
+        senha: z
+            .string()
+            .min(6, "A senha deve ter pelo menos 6 caracteres")
+            .optional(),
+    }),
+    params: z.object({
+        id: z.string().uuid("O ID do utilizador deve ser um UUID válido"), // Assumindo que usa UUID na sua base de dados
+    }),
+});
+
 // 3. Esquemas de Leitura (Úteis para Tipagem no Frontend)
 export const selectTransacaoSchema = createSelectSchema(transacoes);

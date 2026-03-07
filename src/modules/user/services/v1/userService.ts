@@ -75,7 +75,7 @@ export const loginUser = async (email: string, senhaEnviada: string) => {
     const token = jwt.sign(
         { id: user.id, email: user.email },
         process.env.JWT_SECRET as string,
-        { expiresIn: "8h" },
+        { expiresIn: "15m" },
     );
 
     const { senha: _, ...userSemSenha } = user;
@@ -106,4 +106,53 @@ export const getUserByEmail = async (email: string) => {
         .where(eq(usuarios.email, email))
         .limit(1);
     return user;
+};
+
+export const refreshToken = async (oldRefreshToken: string) => {
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    const accessSecret = process.env.JWT_SECRET;
+
+    // Validação das variáveis de ambiente
+    if (!refreshSecret || !accessSecret) {
+        throw new Error(
+            "As variáveis de ambiente JWT_REFRESH_SECRET ou JWT_SECRET não foram definidas!",
+        );
+    }
+
+    try {
+        // 1. Verifica se o refresh token enviado é válido
+        const decoded = jwt.verify(oldRefreshToken, refreshSecret) as {
+            id: number;
+            email: string;
+        };
+
+        // 2. Busca o usuário no banco (garante que a conta não foi deletada/banida)
+        const user = await getUserById(decoded.id);
+        if (!user) {
+            return null;
+        }
+
+        // 3. Gera um NOVO Access Token (curta duração)
+        const newToken = jwt.sign(
+            { id: user.id, email: user.email },
+            accessSecret,
+            { expiresIn: "15m" },
+        );
+
+        // 4. Gera um NOVO Refresh Token (longa duração - Rotação)
+        // Isso invalida o uso infinito do mesmo refresh token
+        const newRefreshToken = jwt.sign(
+            { id: user.id, email: user.email },
+            refreshSecret,
+            { expiresIn: "7d" },
+        );
+
+        return {
+            token: newToken,
+            refreshToken: newRefreshToken,
+        };
+    } catch (error) {
+        // Se o token estiver expirado ou for inválido, cai aqui
+        return null;
+    }
 };
