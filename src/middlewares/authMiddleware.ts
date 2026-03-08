@@ -19,7 +19,7 @@ export const authMiddleware = (
             id: number;
         };
 
-        (req as Request).userId = decoded.id;
+        req.userId = decoded.id;
 
         return next();
     } catch (error) {

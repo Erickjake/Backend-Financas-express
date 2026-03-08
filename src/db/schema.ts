@@ -11,6 +11,16 @@ export const usuarios = sqliteTable("usuarios", {
     senha: text("senha").notNull(),
 });
 
+// 2. Nova tabela para os Refresh Tokens
+export const refreshTokens = sqliteTable("refresh_tokens", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    token: text("token").notNull().unique(), // O hash do refresh token
+    usuarioId: integer("usuario_id")
+        .notNull()
+        .references(() => usuarios.id, { onDelete: "cascade" }), // Se o user for apagado, o token também é
+    expiraEm: integer("expira_em").notNull(), // Timestamp de quando o token deixa de ser válido
+    criadoEm: integer("criado_em").default(Date.now()),
+});
 // Tabela de Transações
 export const transacoes = sqliteTable("transacoes", {
     id: integer("id").primaryKey({ autoIncrement: true }),

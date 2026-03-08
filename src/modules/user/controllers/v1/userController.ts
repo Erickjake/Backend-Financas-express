@@ -34,17 +34,29 @@ export const userRegister = asyncHandler(
 export const userLogin = asyncHandler(async (req: Request, res: Response) => {
     const loginSchema = z.object({
         email: z.string().email("Email inválido"),
-        senha: z.string().min(1, "Senha é obrigatória"),
+        senha: z.string().min(6, "Senha é obrigatória"),
     });
 
     const { email, senha } = loginSchema.parse(req.body);
-    const user = await userService.loginUser(email, senha);
+    const result = await userService.loginUser(email, senha);
 
-    if (!user) {
+    if (!result) {
         return res.status(401).json({ error: "Credenciais inválidas" });
     }
+    // 1. Extraímos o refreshToken do resultado
+    const { refreshToken, ...userData } = result;
 
-    return res.status(200).json({ message: "Login bem-sucedido", user });
+    // 2. Configuramos o Cookie
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true, // Impede acesso via JS (XSS protection)
+        secure: true, // Só envia via HTTPS (em produção)
+        sameSite: "strict", // Protege contra CSRF
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias em milissegundos
+    });
+    return res.status(200).json({
+        user: userData,
+        token: result.token, // Este é o Access Token (curto)
+    });
 });
 
 /**
@@ -100,13 +112,41 @@ export const updateUserController = async (
 
 export const refreshTokenController = asyncHandler(
     async (req: Request, res: Response) => {
-        const { refreshToken } = req.body;
+        // O cookie-parser coloca os cookies em req.cookies
+        const oldRefreshToken = req.cookies.refreshToken;
+        if (!oldRefreshToken) {
+            return res
+                .status(400)
+                .json({ error: "Refresh token é necessário." });
+        }
+        const result = await userService.refreshToken(oldRefreshToken);
+        if (!result) {
+            res.clearCookie("refreshToken"); // Limpa o cookie se for inválido
+            return res.status(403).json({ error: "Sessão expirada" });
+        }
+        res.cookie("refreshToken", result.refreshToken, {
+            httpOnly: true, // Impede acesso via JS (XSS protection)
+            secure: true, // Só envia via HTTPS (em produção)
+            sameSite: "strict", // Protege contra CSRF
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias em milissegundos
+        });
+        return res.status(200).json({ token: result.token });
+    },
+);
+
+export const logoutController = asyncHandler(
+    async (req: Request, res: Response) => {
+        const refreshToken = req.cookies.refreshToken;
         if (!refreshToken) {
             return res
                 .status(400)
                 .json({ error: "Refresh token é necessário." });
         }
-        const user = await userService.refreshToken(refreshToken);
-        return res.status(200).json(user);
+        const user = await userService.logoutUser(refreshToken);
+        if (!user) {
+            return res.status(401).json({ error: "Refresh token inválido." });
+        }
+        res.clearCookie("refreshToken");
+        return res.status(200).json({ message: "Sessão encerrada." });
     },
 );

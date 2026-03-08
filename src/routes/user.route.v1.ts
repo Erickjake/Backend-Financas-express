@@ -37,6 +37,10 @@ router.put(
 // Apagar Utilizador (DELETE)
 router.delete("/:id", authMiddleware, userController.deleteUserController);
 
+// Rota para renovar o Access Token (Pública, pois o Access Token já expirou)
 router.post("/refresh-token", userController.refreshTokenController);
+
+// Rota para encerrar a sessão (Pública ou Protegida, remove o token do banco)
+router.post("/logout", userController.logoutController);
 
 export default router;
